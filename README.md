@@ -24,7 +24,18 @@ Die Modelle erscheinen in deinem echten Raum und lassen sich mit den Controllern
 
 Über dem linken Controller zeigt ein kleines Panel das aktuelle Modell und eine Kurzhilfe.
 
-## Eigene Modelle hinzufügen
+## Eigene Dateien direkt öffnen
+
+Im Overlay auf **„+ GLB-Dateien öffnen“** tippen oder eine `.glb` ins Browserfenster ziehen. Das Modell wird sofort geladen,
+erscheint als „lokal“ in der Liste und bleibt nach dem Neuladen erhalten. Gespeichert wird es nur in diesem Browser,
+nichts wird hochgeladen. Mit **×** entfernst du es wieder.
+
+Auf der **Quest 3**: Die Datei zuerst aufs Headset bringen (per USB in den Ordner `Download` kopieren oder im Quest-Browser
+herunterladen), dann im Viewer **vor** „START AR“ auf „GLB-Dateien öffnen“ tippen. In AR schaltest du wie gewohnt mit A/B durch.
+
+## Modelle dauerhaft ins Repository legen
+
+Für Modelle, die alle Besucher sehen sollen:
 
 1. `.glb`-Datei in den Ordner [`models/`](models/) legen.
 2. Committen und auf `main` pushen – der Workflow erzeugt `models/models.json` automatisch.
@@ -70,6 +81,7 @@ src/main.js           Renderer, Szene, Licht, WebXR-Session, Platzierung
 src/modelManager.js   models.json + GLB laden, normalisieren, Animationen
 src/xrControls.js     Controller: Greifen, Zwei-Hand-Skalierung, Sticks, Buttons
 src/hud.js            Info-Panel am linken Controller
+src/localModels.js    Selbst geöffnete GLBs im Browser speichern (IndexedDB)
 models/               GLB-Dateien + models.json
 scripts/              update-models.py (erzeugt models.json)
 .github/workflows/    Deployment auf GitHub Pages

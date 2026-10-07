@@ -5,6 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ModelManager } from './modelManager.js';
 import { XRControls } from './xrControls.js';
 import { Hud } from './hud.js';
+import { listLocalModels, saveLocalModel, deleteLocalModel } from './localModels.js';
 
 const DESKTOP_BACKGROUND = new THREE.Color(0x1b1e24);
 const DESKTOP_CAMERA_POSITION = new THREE.Vector3(0, 0.25, 1);
@@ -61,9 +62,33 @@ function renderModelList() {
   listEl.replaceChildren(
     ...manager.models.map((model, i) => {
       const button = document.createElement('button');
-      button.textContent = model.name;
       button.classList.toggle('active', i === manager.index);
       button.addEventListener('click', () => manager.load(i));
+
+      const label = document.createElement('span');
+      label.className = 'name';
+      label.textContent = model.name;
+      button.append(label);
+
+      if (model.local) {
+        const tag = document.createElement('span');
+        tag.className = 'local';
+        tag.textContent = 'lokal';
+
+        const remove = document.createElement('span');
+        remove.className = 'remove';
+        remove.textContent = '×';
+        remove.title = 'Aus der Liste entfernen';
+        remove.setAttribute('role', 'button');
+        remove.addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteLocalModel(model.localId);
+          manager.removeModel(manager.models.indexOf(model));
+          renderModelList();
+        });
+
+        button.append(tag, remove);
+      }
       return button;
     }),
   );
@@ -80,6 +105,11 @@ function onModelChange(state) {
     status = state.message;
   } else if (state.status === 'ready') {
     status = state.hasAnimation ? 'Animation läuft' : 'Bereit';
+  } else if (state.status === 'empty') {
+    setStatus('Keine Modelle – öffne eine eigene GLB-Datei.');
+    hud.set('Kein Modell', '');
+    renderModelList();
+    return;
   }
 
   setStatus(`${name}${position}: ${status}`, state.status === 'error');
@@ -193,17 +223,70 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// --- Eigene Dateien öffnen -------------------------------------------------
+
+const fileInput = document.getElementById('file-input');
+const dropZone = document.getElementById('drop-zone');
+
+async function handleFiles(fileList) {
+  const files = [...fileList];
+  const glbs = files.filter((f) => /\.glb$/i.test(f.name));
+  if (!glbs.length) {
+    if (files.length) setStatus('Nur .glb-Dateien werden unterstützt.', true);
+    return;
+  }
+
+  const saved = await Promise.all(glbs.map(saveLocalModel));
+  const first = manager.addModels(saved);
+  manager.load(first);
+
+  const skipped = files.length - glbs.length;
+  if (skipped) console.warn(`${skipped} Datei(en) ohne .glb-Endung übersprungen.`);
+}
+
+fileInput.addEventListener('change', () => {
+  handleFiles(fileInput.files);
+  fileInput.value = ''; // dieselbe Datei erneut wählbar
+});
+
+let dragDepth = 0;
+const hasFiles = (e) => e.dataTransfer?.types.includes('Files');
+
+window.addEventListener('dragenter', (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  dragDepth++;
+  dropZone.classList.add('visible');
+});
+window.addEventListener('dragover', (e) => {
+  if (hasFiles(e)) e.preventDefault();
+});
+window.addEventListener('dragleave', () => {
+  if (--dragDepth <= 0) {
+    dragDepth = 0;
+    dropZone.classList.remove('visible');
+  }
+});
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  dropZone.classList.remove('visible');
+  if (e.dataTransfer?.files.length) handleFiles(e.dataTransfer.files);
+});
+
 // --- Start ------------------------------------------------------------------
 
 try {
   await manager.loadManifest();
-  renderModelList();
-  if (manager.models.length) {
-    manager.load(0);
-  } else {
-    setStatus('Keine Modelle in models/models.json gefunden.', true);
-  }
 } catch (err) {
   console.error(err);
   setStatus(err.message, true);
+}
+
+manager.addModels(await listLocalModels());
+renderModelList();
+if (manager.models.length) {
+  manager.load(0);
+} else if (!statusEl.classList.contains('error')) {
+  setStatus('Keine Modelle – öffne eine eigene GLB-Datei.');
 }

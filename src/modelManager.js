@@ -25,6 +25,7 @@ export class ModelManager {
     this.actions = [];
     this.animationPaused = false;
     this._loadToken = 0;
+    this._lastState = { status: 'empty' };
 
     const draco = new DRACOLoader().setDecoderPath(`${THREE_CDN}libs/draco/gltf/`);
     const ktx2 = new KTX2Loader().setTranscoderPath(`${THREE_CDN}libs/basis/`).detectSupport(renderer);
@@ -51,6 +52,40 @@ export class ModelManager {
       });
 
     return this.models;
+  }
+
+  /**
+   * Hängt lokal geöffnete Dateien (`{ id, name, blob }`) an die Liste an.
+   * Gibt den Index des ersten neuen Eintrags zurück.
+   */
+  addModels(entries) {
+    const first = this.models.length;
+    for (const { id, name, blob } of entries) {
+      this.models.push({ name, url: URL.createObjectURL(blob), local: true, localId: id });
+    }
+    return first;
+  }
+
+  /** Entfernt einen lokalen Eintrag; war er aktiv, wird das nächste Modell geladen. */
+  removeModel(index) {
+    const model = this.models[index];
+    if (!model) return;
+    if (model.local) URL.revokeObjectURL(model.url);
+    this.models.splice(index, 1);
+
+    if (index === this.index) {
+      this._loadToken++; // laufenden Ladevorgang verwerfen
+      this._clear();
+      if (this.models.length) {
+        this.load(Math.min(index, this.models.length - 1));
+      } else {
+        this.index = -1;
+        this._emit({ status: 'empty' });
+      }
+    } else {
+      if (index < this.index) this.index--;
+      this._emit(this._lastState); // Position (x/n) in der Anzeige aktualisieren
+    }
   }
 
   get current() {
@@ -134,6 +169,7 @@ export class ModelManager {
   }
 
   _emit(state) {
+    this._lastState = state;
     this.onChange({ index: this.index, model: this.current, ...state });
   }
 }

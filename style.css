@@ -41,6 +41,9 @@ h2 { margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spac
 .model-list { display: flex; flex-direction: column; gap: 6px; }
 
 .model-list button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   text-align: left;
   padding: 10px 12px;
   font: inherit;
@@ -54,6 +57,51 @@ h2 { margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spac
 
 .model-list button:hover { background: rgba(255, 255, 255, 0.1); }
 .model-list button.active { border-color: var(--accent); background: rgba(79, 140, 255, 0.18); }
+.model-list .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-list .local { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.model-list .remove {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: -4px -4px -4px 0;
+  border-radius: 6px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+}
+.model-list .remove:hover { color: #ff7b7b; background: rgba(255, 123, 123, 0.15); }
+
+.upload {
+  display: block;
+  margin-top: 12px;
+  padding: 10px 12px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--accent);
+  border: 1px dashed var(--accent);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.upload:hover { background: rgba(79, 140, 255, 0.12); }
+.upload-hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+
+#drop-zone {
+  position: fixed;
+  inset: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  color: var(--text);
+  background: rgba(27, 30, 36, 0.75);
+  border: 2px dashed var(--accent);
+  border-radius: 18px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 10;
+}
+#drop-zone.visible { opacity: 1; }
 
 .status { min-height: 1.2em; margin: 12px 0 0; font-size: 14px; color: var(--muted); }
 .status.error { color: #ff7b7b; }

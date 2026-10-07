@@ -23,6 +23,12 @@
     <div id="model-list" class="model-list"></div>
     <p id="status" class="status">Lade Modell-Liste…</p>
 
+    <label class="upload">
+      + GLB-Dateien öffnen
+      <input type="file" id="file-input" multiple accept=".glb,model/gltf-binary,application/octet-stream" hidden>
+    </label>
+    <p class="upload-hint">…oder Datei ins Fenster ziehen. Bleibt nur in diesem Browser gespeichert.</p>
+
     <details>
       <summary>Steuerung (Controller)</summary>
       <table>
@@ -39,6 +45,8 @@
 
     <p class="hint">Auf der Quest 3 unten auf <strong>START AR</strong> tippen.</p>
   </div>
+
+  <div id="drop-zone"><span>GLB hier ablegen</span></div>
 
   <script type="module" src="src/main.js"></script>
 </body>
