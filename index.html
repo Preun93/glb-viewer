@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GLB Viewer – Quest 3 Passthrough</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="overlay">
+    <h1>GLB Viewer</h1>
+    <p class="sub">Meta Quest 3 · Passthrough</p>
+
+    <h2>Modelle</h2>
+    <div id="model-list" class="model-list"></div>
+    <p id="status" class="status">Lade Modell-Liste…</p>
+
+    <details>
+      <summary>Steuerung (Controller)</summary>
+      <table>
+        <tr><td>Grip (Seitentaste)</td><td>Modell greifen &amp; bewegen/drehen</td></tr>
+        <tr><td>Beide Grips</td><td>Skalieren, verschieben, drehen</td></tr>
+        <tr><td>Rechter Stick</td><td>Drehen (links/rechts, hoch/runter)</td></tr>
+        <tr><td>Linker Stick ↕</td><td>Näher / weiter weg</td></tr>
+        <tr><td>Linker Stick ↔</td><td>Kleiner / größer</td></tr>
+        <tr><td>A / B</td><td>Nächstes / vorheriges Modell</td></tr>
+        <tr><td>X oder Stick drücken</td><td>Zurücksetzen</td></tr>
+        <tr><td>Y</td><td>Animation an / aus</td></tr>
+      </table>
+    </details>
+
+    <p class="hint">Auf der Quest 3 unten auf <strong>START AR</strong> tippen.</p>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
