@@ -84,8 +84,24 @@ export class ModelManager {
       }
     } else {
       if (index < this.index) this.index--;
-      this._emit(this._lastState); // Position (x/n) in der Anzeige aktualisieren
+      this.emitState(); // Position (x/n) in der Anzeige aktualisieren
     }
+  }
+
+  /** Faktor für `root.scale`, mit dem das Modell in Originalgröße (1 Einheit = 1 m) erscheint. */
+  get realScale() {
+    return this.content ? 1 / this.content.scale.x : 1;
+  }
+
+  /** Maßstab relativ zur Originalgröße bei gegebener `root.scale`. */
+  scaleRatio(rootScale) {
+    return this.content ? rootScale * this.content.scale.x : 1;
+  }
+
+  /** Abstand vom Modell-Mittelpunkt zur Unterseite bei gegebener `root.scale` (in Metern). */
+  bottomOffset(rootScale) {
+    const height = this.content?.userData.size.y ?? 0;
+    return (height / 2) * this.scaleRatio(rootScale);
   }
 
   get current() {
@@ -168,22 +184,31 @@ export class ModelManager {
     }
   }
 
+  /** Meldet den letzten Zustand erneut, z. B. um die Anzeige aufzufrischen. */
+  emitState() {
+    this._emit(this._lastState);
+  }
+
   _emit(state) {
     this._lastState = state;
     this.onChange({ index: this.index, model: this.current, ...state });
   }
 }
 
-/** Zentriert das Modell im Ursprung und skaliert es auf TARGET_SIZE. */
+/**
+ * Zentriert das Modell im Ursprung und skaliert es auf TARGET_SIZE.
+ * Die Originalmaße landen in `wrapper.userData.size`.
+ */
 function normalize(object) {
   object.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(object);
   const wrapper = new THREE.Group();
   wrapper.add(object);
+  wrapper.userData.size = new THREE.Vector3();
 
   if (box.isEmpty()) return wrapper;
 
-  const size = box.getSize(new THREE.Vector3());
+  const size = box.getSize(wrapper.userData.size);
   const center = box.getCenter(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z) || 1;
 

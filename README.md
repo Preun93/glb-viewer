@@ -20,9 +20,17 @@ Die Modelle erscheinen in deinem echten Raum und lassen sich mit den Controllern
 | **A** / **B** | Nächstes / vorheriges Modell |
 | **X** oder Stick drücken | Modell zurücksetzen (1 m vor dir) |
 | **Y** | Animation pausieren / fortsetzen |
+| **Rechter Trigger** | Knopf drücken, auf den der Zeigestrahl zielt / im Platziermodus abstellen |
 | Hand-Tracking: **Pinch** | Greifen (wie Grip) |
 
-Über dem linken Controller zeigt ein kleines Panel das aktuelle Modell und eine Kurzhilfe.
+Über dem linken Controller zeigt ein kleines Panel das aktuelle Modell, den Maßstab (100 % = Originalgröße) und eine
+Kurzhilfe. Darunter liegen zwei Knöpfe, die du mit dem Zeigestrahl des rechten Controllers und dem Trigger auslöst:
+
+- **AR beenden**: zurück in die normale Browseransicht.
+- **Auf Fläche · 1:1**: Das Modell wird auf Originalgröße gesetzt (1 Einheit in der GLB = 1 Meter) und folgt einem Ring
+  dort, wo der rechte Controller auf Boden oder Tisch zielt. **Trigger** stellt es ab, der rechte Stick dreht es vorher,
+  **X** oder **Abbrechen** bricht ab. Tische und andere Flächen erkennt die Quest 3 über die Raumeinrichtung
+  (Einstellungen → Physischer Raum); ohne sie dient der Boden als Fläche.
 
 ## Eigene Dateien direkt öffnen
 

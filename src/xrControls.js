@@ -8,6 +8,7 @@ const SCALE_SPEED = 1.2; // exponentiell pro Sekunde
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 20;
 const MIN_DISTANCE = 0.15;
+const POINTER_LENGTH = 1.5; // Meter, Länge des Zeigestrahls ohne Treffer
 
 // Button-Indizes im "xr-standard"-Gamepad-Mapping der Quest-Controller.
 const BTN_STICK = 3;
@@ -22,6 +23,7 @@ const _pa = new THREE.Vector3();
 const _pb = new THREE.Vector3();
 const _mid = new THREE.Vector3();
 const _q = new THREE.Quaternion();
+const _raycaster = new THREE.Raycaster();
 
 /**
  * Controller-Steuerung für das Ziel-Objekt im WebXR-Modus.
@@ -29,6 +31,9 @@ const _q = new THREE.Quaternion();
  * - Grip (oder Pinch bei Hand-Tracking) greift das Objekt; es folgt der Hand.
  * - Zwei Grips: Skalieren über den Abstand, Drehen um die Hochachse, Verschieben.
  * - Thumbsticks und A/B/X/Y lösen Aktionen aus (siehe README).
+ * - Der rechte Controller hat einen Zeigestrahl: Trigger drückt den anvisierten
+ *   Knopf (`pointerTargets`, Callbacks in `userData`) oder ruft `onTrigger` auf.
+ * - Während `placing` ist Greifen gesperrt; nur die Drehung um die Hochachse bleibt.
  */
 export class XRControls {
   constructor(renderer, scene, target, actions = {}) {
@@ -38,6 +43,9 @@ export class XRControls {
     this.actions = actions;
     this.hands = [];
     this.twoHand = null;
+    this.placing = false;
+    this.pointerTargets = [];
+    this.hovered = null;
 
     const factory = new XRControllerModelFactory();
 
@@ -47,7 +55,14 @@ export class XRControls {
       grip.add(factory.createControllerModel(grip));
       scene.add(controller, grip);
 
-      const hand = { controller, grip, inputSource: null, handedness: null, grabbing: false, prevButtons: [] };
+      const pointer = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]),
+        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }),
+      );
+      pointer.visible = false;
+      controller.add(pointer);
+
+      const hand = { controller, grip, pointer, inputSource: null, handedness: null, grabbing: false, prevButtons: [] };
       this.hands.push(hand);
 
       controller.addEventListener('connected', (e) => {
@@ -58,6 +73,8 @@ export class XRControls {
       });
       controller.addEventListener('disconnected', () => {
         this._endGrab(hand);
+        hand.pointer.visible = false;
+        if (this._isPointer(hand)) this._setHovered(null);
         this.actions.onDisconnected?.(hand);
         hand.inputSource = null;
         hand.handedness = null;
@@ -65,8 +82,11 @@ export class XRControls {
 
       controller.addEventListener('squeezestart', () => this._startGrab(hand));
       controller.addEventListener('squeezeend', () => this._endGrab(hand));
-      // Hand-Tracking: Pinch (select) greift ebenfalls.
-      controller.addEventListener('selectstart', () => hand.inputSource?.hand && this._startGrab(hand));
+      // Hand-Tracking: Pinch (select) greift ebenfalls. Controller: Trigger.
+      controller.addEventListener('selectstart', () => {
+        if (hand.inputSource?.hand) this._startGrab(hand);
+        else this._trigger(hand);
+      });
       controller.addEventListener('selectend', () => hand.inputSource?.hand && this._endGrab(hand));
     }
   }
@@ -79,6 +99,7 @@ export class XRControls {
 
   update(dt) {
     if (this.twoHand) this._updateTwoHand();
+    this._updatePointer();
 
     const camera = this.renderer.xr.getCamera();
     const free = this.target.parent === this.scene && !this.twoHand;
@@ -96,12 +117,12 @@ export class XRControls {
 
       if (hand.handedness === 'right') {
         if (x) this.target.rotateOnWorldAxis(UP, -x * ROTATE_SPEED * dt);
-        if (y) {
+        if (y && !this.placing) {
           camera.getWorldDirection(_dir);
           _right.crossVectors(_dir, UP).normalize();
           this.target.rotateOnWorldAxis(_right, y * ROTATE_SPEED * dt);
         }
-      } else if (hand.handedness === 'left') {
+      } else if (hand.handedness === 'left' && !this.placing) {
         if (y) this._moveAlongView(camera, -y * MOVE_SPEED * dt);
         if (x) this._scaleBy(Math.exp(x * SCALE_SPEED * dt));
       }
@@ -111,7 +132,7 @@ export class XRControls {
   // --- Greifen -------------------------------------------------------------
 
   _startGrab(hand) {
-    if (hand.grabbing) return;
+    if (hand.grabbing || this.placing) return;
     hand.grabbing = true;
     this._updateGrabMode();
   }
@@ -173,6 +194,48 @@ export class XRControls {
     this.target.scale.setScalar(scale);
   }
 
+  // --- Zeigestrahl -------------------------------------------------------
+
+  _isPointer(hand) {
+    return hand.handedness === 'right' && hand.inputSource && !hand.inputSource.hand;
+  }
+
+  _updatePointer() {
+    let hovered = null;
+    for (const hand of this.hands) {
+      hand.pointer.visible = Boolean(this._isPointer(hand));
+      if (!hand.pointer.visible) continue;
+
+      let length = POINTER_LENGTH;
+      const targets = this.pointerTargets.filter((m) => m.parent && isVisible(m));
+      if (targets.length) {
+        _raycaster.setFromXRController(hand.controller);
+        const hit = _raycaster.intersectObjects(targets, false)[0];
+        if (hit) {
+          hovered = hit.object;
+          length = hit.distance;
+        }
+      }
+      hand.pointer.scale.z = length;
+    }
+    this._setHovered(hovered);
+  }
+
+  _setHovered(mesh) {
+    if (mesh === this.hovered) return;
+    this.hovered?.userData.onHover?.(false);
+    this.hovered = mesh;
+    mesh?.userData.onHover?.(true);
+  }
+
+  _trigger(hand) {
+    if (this._isPointer(hand) && this.hovered) {
+      this.hovered.userData.onClick?.();
+    } else {
+      this.actions.onTrigger?.(hand);
+    }
+  }
+
   // --- Sticks & Buttons ----------------------------------------------------
 
   _moveAlongView(camera, amount) {
@@ -208,6 +271,11 @@ export class XRControls {
 
 function deadzone(v) {
   return Math.abs(v) < DEADZONE ? 0 : (v - Math.sign(v) * DEADZONE) / (1 - DEADZONE);
+}
+
+function isVisible(object) {
+  for (let o = object; o; o = o.parent) if (!o.visible) return false;
+  return true;
 }
 
 function clampScale(s) {

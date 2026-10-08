@@ -5,6 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ModelManager } from './modelManager.js';
 import { XRControls } from './xrControls.js';
 import { Hud } from './hud.js';
+import { Placement } from './placement.js';
 import { listLocalModels, saveLocalModel, deleteLocalModel } from './localModels.js';
 
 const DESKTOP_BACKGROUND = new THREE.Color(0x1b1e24);
@@ -51,7 +52,10 @@ scene.add(modelRoot);
 
 const listEl = document.getElementById('model-list');
 const statusEl = document.getElementById('status');
-const hud = new Hud();
+const hud = new Hud({
+  onExit: () => renderer.xr.getSession()?.end(),
+  onPlace: () => (placement.active ? cancelPlacement() : startPlacement()),
+});
 
 function setStatus(text, isError = false) {
   statusEl.textContent = text;
@@ -105,6 +109,7 @@ function onModelChange(state) {
     status = state.message;
   } else if (state.status === 'ready') {
     status = state.hasAnimation ? 'Animation läuft' : 'Bereit';
+    applyRealSize();
   } else if (state.status === 'empty') {
     setStatus('Keine Modelle – öffne eine eigene GLB-Datei.');
     hud.set('Kein Modell', '');
@@ -126,7 +131,12 @@ const controls = new XRControls(renderer, scene, modelRoot, {
   onPrev: () => manager.prev(),
   onReset: () => {
     controls.releaseAll();
+    stopPlacement();
+    realSize = null;
     placeInFrontOfUser();
+  },
+  onTrigger: () => {
+    if (placement.active && placement.hasHit) finishPlacement();
   },
   onToggleAnimation: () => {
     if (manager.toggleAnimation()) {
@@ -140,6 +150,60 @@ const controls = new XRControls(renderer, scene, modelRoot, {
     if (hud.mesh.parent === hand.grip) hand.grip.remove(hud.mesh);
   },
 });
+
+controls.pointerTargets = hud.buttons;
+
+// --- Originalgröße & Platzieren auf Flächen ---------------------------------
+
+const placement = new Placement(renderer, scene);
+
+/** Gesetzt, solange das Modell in Originalgröße auf einer Fläche steht. */
+let realSize = null; // { floorY }
+
+function startPlacement() {
+  const hand = controls.hands.find((h) => h.handedness === 'right' && h.inputSource && !h.inputSource.hand);
+  if (!manager.content || !hand) return;
+
+  controls.releaseAll();
+  controls.placing = true;
+  realSize = null;
+
+  // Originalgröße, aufrecht – nur die Drehung um die Hochachse bleibt.
+  const yaw = new THREE.Euler().setFromQuaternion(modelRoot.quaternion, 'YXZ').y;
+  modelRoot.rotation.set(0, yaw, 0);
+  modelRoot.scale.setScalar(manager.realScale);
+
+  hud.setPlacing(true);
+  placement.start(hand);
+}
+
+function stopPlacement() {
+  placement.stop();
+  controls.placing = false;
+  hud.setPlacing(false);
+}
+
+function cancelPlacement() {
+  stopPlacement();
+  placeInFrontOfUser();
+  manager.emitState();
+}
+
+function finishPlacement() {
+  realSize = { floorY: placement.point.y };
+  stopPlacement();
+  hud.set(hud.title, 'Steht in Originalgröße');
+}
+
+/** Hält das Modell beim Platzieren am Ring bzw. nach Modellwechsel auf der Fläche. */
+function applyRealSize() {
+  if (placement.active) {
+    modelRoot.scale.setScalar(manager.realScale);
+  } else if (realSize) {
+    modelRoot.scale.setScalar(manager.realScale);
+    modelRoot.position.y = realSize.floorY + manager.bottomOffset(modelRoot.scale.x);
+  }
+}
 
 /** Setzt das Modell 1 m vor den Nutzer, Vorderseite zum Nutzer gedreht. */
 function placeInFrontOfUser() {
@@ -182,6 +246,8 @@ renderer.xr.addEventListener('sessionstart', () => {
 
 renderer.xr.addEventListener('sessionend', () => {
   controls.releaseAll();
+  stopPlacement();
+  realSize = null;
   scene.background = DESKTOP_BACKGROUND;
   resetDesktopView();
 });
@@ -189,7 +255,7 @@ renderer.xr.addEventListener('sessionend', () => {
 document.body.appendChild(
   ARButton.createButton(renderer, {
     requiredFeatures: ['local-floor'],
-    optionalFeatures: ['hand-tracking'],
+    optionalFeatures: ['hand-tracking', 'hit-test'],
   }),
 );
 
@@ -197,11 +263,21 @@ document.body.appendChild(
 
 const clock = new THREE.Clock();
 
-renderer.setAnimationLoop(() => {
+renderer.setAnimationLoop((time, frame) => {
   const dt = Math.min(clock.getDelta(), 0.1);
 
   if (renderer.xr.isPresenting) {
     controls.update(dt);
+
+    if (placement.active) {
+      placement.update(frame);
+      if (placement.hasHit && manager.content) {
+        modelRoot.position.copy(placement.point);
+        modelRoot.position.y += manager.bottomOffset(modelRoot.scale.x);
+      }
+      hud.set(hud.title, placement.hasHit ? 'Trigger: hier abstellen' : 'Auf eine Fläche zielen…');
+    }
+    hud.setScale(manager.content ? Math.round(manager.scaleRatio(modelRoot.scale.x) * 100) : null);
   } else {
     orbit.update();
   }
