@@ -27,12 +27,24 @@ document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = DESKTOP_BACKGROUND;
 
-const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-pmrem.dispose();
+// Die Leuchtflächen der RoomEnvironment (Intensität 17–100) spiegeln sich auf
+// glänzenden Materialien als ausgebrannte weiße Flecken. Gedimmt bleiben die
+// Reflexionen erhalten, aber mit Zeichnung statt Überstrahlung.
+const ENV_LIGHTBOX_SCALE = 0.25;
+const HEMI_INTENSITY = 0.15; // nur leichte Aufhellung, die Umgebung leuchtet bereits
+const SUN_INTENSITY = 1.0;
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 0.6));
-const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+const room = new RoomEnvironment();
+room.traverse((node) => {
+  if (node.isMesh && node.material.isMeshBasicMaterial) node.material.color.multiplyScalar(ENV_LIGHTBOX_SCALE);
+});
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(room, 0.04).texture;
+pmrem.dispose();
+room.dispose();
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, HEMI_INTENSITY));
+const sun = new THREE.DirectionalLight(0xffffff, SUN_INTENSITY);
 sun.position.set(1, 3, 2);
 scene.add(sun);
 
