@@ -98,6 +98,12 @@ export class ModelManager {
     return this.content ? rootScale * this.content.scale.x : 1;
   }
 
+  /** Radius der umschließenden Kugel bei gegebener `root.scale` (in Metern). */
+  boundingRadius(rootScale) {
+    const size = this.content?.userData.size;
+    return size ? (size.length() / 2) * this.scaleRatio(rootScale) : 0;
+  }
+
   /** Abstand vom Modell-Mittelpunkt zur Unterseite bei gegebener `root.scale` (in Metern). */
   bottomOffset(rootScale) {
     const height = this.content?.userData.size.y ?? 0;
@@ -145,6 +151,9 @@ export class ModelManager {
     }
 
     this._clear();
+    gltf.scene.traverse((node) => {
+      if (node.isMesh) node.castShadow = true;
+    });
     this.content = normalize(gltf.scene);
     this.root.add(this.content);
 

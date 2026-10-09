@@ -32,6 +32,8 @@ Kurzhilfe. Darunter liegen zwei Knöpfe, die du mit dem Zeigestrahl des rechten 
   **X** oder **Abbrechen** bricht ab. Tische und andere Flächen erkennt die Quest 3 über die Raumeinrichtung
   (Einstellungen → Physischer Raum); ohne sie dient der Boden als Fläche.
 
+In AR wirft das Modell einen weichen Schatten auf die Fläche darunter: nach dem Abstellen auf den Tisch, sonst auf den Boden.
+
 ## Eigene Dateien direkt öffnen
 
 Im Overlay auf **„+ GLB-Dateien öffnen“** tippen oder eine `.glb` ins Browserfenster ziehen. Das Modell wird sofort geladen,

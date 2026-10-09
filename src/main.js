@@ -6,6 +6,7 @@ import { ModelManager } from './modelManager.js';
 import { XRControls } from './xrControls.js';
 import { Hud } from './hud.js';
 import { Placement } from './placement.js';
+import { GroundShadow } from './shadow.js';
 import { listLocalModels, saveLocalModel, deleteLocalModel } from './localModels.js';
 
 const DESKTOP_BACKGROUND = new THREE.Color(0x1b1e24);
@@ -34,6 +35,8 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 0.6));
 const sun = new THREE.DirectionalLight(0xffffff, 1.2);
 sun.position.set(1, 3, 2);
 scene.add(sun);
+
+const shadow = new GroundShadow(renderer, scene, sun);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 100);
 camera.position.copy(DESKTOP_CAMERA_POSITION);
@@ -205,6 +208,28 @@ function applyRealSize() {
   }
 }
 
+const _center = new THREE.Vector3();
+const _scale = new THREE.Vector3();
+
+/** Schatten auf die Fläche unter dem Modell legen (nur in AR). */
+function updateShadow() {
+  if (!manager.content) {
+    shadow.update(_center, 0, 0);
+    return;
+  }
+  modelRoot.getWorldPosition(_center);
+  const rootScale = modelRoot.getWorldScale(_scale).x;
+  const bottom = _center.y - manager.bottomOffset(rootScale);
+
+  // Fläche: beim Platzieren der Ring, nach dem Abstellen die Tischhöhe
+  // (solange das Modell nicht darunter bewegt wurde), sonst der Boden.
+  let surfaceY = 0;
+  if (placement.active && placement.hasHit) surfaceY = placement.point.y;
+  else if (realSize && bottom >= realSize.floorY - 0.05) surfaceY = realSize.floorY;
+
+  shadow.update(_center, manager.boundingRadius(rootScale), surfaceY);
+}
+
 /** Setzt das Modell 1 m vor den Nutzer, Vorderseite zum Nutzer gedreht. */
 function placeInFrontOfUser() {
   const xrCamera = renderer.xr.getCamera();
@@ -240,6 +265,7 @@ let placementFrames = 0;
 
 renderer.xr.addEventListener('sessionstart', () => {
   scene.background = null; // transparent → Passthrough sichtbar
+  shadow.setEnabled(true);
   needsPlacement = true;
   placementFrames = 0;
 });
@@ -248,6 +274,7 @@ renderer.xr.addEventListener('sessionend', () => {
   controls.releaseAll();
   stopPlacement();
   realSize = null;
+  shadow.setEnabled(false);
   scene.background = DESKTOP_BACKGROUND;
   resetDesktopView();
 });
@@ -277,6 +304,7 @@ renderer.setAnimationLoop((time, frame) => {
       }
       hud.set(hud.title, placement.hasHit ? 'Trigger: hier abstellen' : 'Auf eine Fläche zielen…');
     }
+    updateShadow();
     hud.setScale(manager.content ? Math.round(manager.scaleRatio(modelRoot.scale.x) * 100) : null);
   } else {
     orbit.update();
