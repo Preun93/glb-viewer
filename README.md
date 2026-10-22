@@ -52,7 +52,6 @@ Für Modelle, die alle Besucher sehen sollen:
    Lokal geht es mit `python3 scripts/update-models.py`.
 
 Anzeigenamen lassen sich in `models/models.json` anpassen. Externe Modelle können mit `"url"` statt `"file"` eingetragen werden.
-Die zwei Beispielmodelle stammen aus den [Khronos glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) und können aus der Liste entfernt werden.
 
 ## Auf GitHub veröffentlichen
 
