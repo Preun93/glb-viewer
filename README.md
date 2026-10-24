@@ -34,6 +34,11 @@ Kurzhilfe. Darunter liegen zwei Knöpfe, die du mit dem Zeigestrahl des rechten 
 
 In AR wirft das Modell einen weichen Schatten auf die Fläche darunter: nach dem Abstellen auf den Tisch, sonst auf den Boden.
 
+**Keine Boundary-Begrenzung:** Der Viewer nutzt den WebXR-Raumtyp `unbounded` statt `local-floor`. Dadurch erscheint
+kein Begrenzungskreis am Boden, und das Modell verschwindet nicht, wenn man sich weiter bewegt – so kann man auch um große
+Modelle herumgehen. Da man im Passthrough die Umgebung sieht, ist die Begrenzung hier nicht nötig; trotzdem auf Hindernisse
+achten. Die Bodenhöhe misst der Viewer beim Start per Hit-Test (Raumeinrichtung der Quest); ohne Treffer wird sie geschätzt.
+
 ## Eigene Dateien direkt öffnen
 
 Im Overlay auf **„+ GLB-Dateien öffnen“** tippen oder eine `.glb` ins Browserfenster ziehen. Das Modell wird sofort geladen,

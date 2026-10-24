@@ -12,7 +12,7 @@ const _floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
  * Sucht mit dem Zeigestrahl eines Controllers eine reale Fläche.
  *
  * Nutzt WebXR-Hit-Test (Raum-Mesh der Quest 3). Ohne Hit-Test oder ohne
- * Treffer dient der Boden (y = 0 im "local-floor"-Raum) als Fläche.
+ * Treffer dient der Boden (Höhe von `FloorEstimator`) als Fläche.
  * Ein Ring markiert die gefundene Stelle.
  */
 export class Placement {
@@ -58,8 +58,10 @@ export class Placement {
     this.reticle.visible = false;
   }
 
-  update(frame) {
+  /** @param {number} floorY Bodenhöhe für den Rückfall ohne Hit-Test-Treffer */
+  update(frame, floorY = 0) {
     if (!this.active) return;
+    _floor.constant = -floorY;
     this.hasHit = this._hitTest(frame) || this._hitFloor();
     this.reticle.visible = this.hasHit;
     if (this.hasHit) this.reticle.position.copy(this.point);

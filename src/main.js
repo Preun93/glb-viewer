@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { ARButton } from 'three/addons/webxr/ARButton.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { createARButton } from './arButton.js';
+import { FloorEstimator } from './floor.js';
 import { ModelManager } from './modelManager.js';
 import { XRControls } from './xrControls.js';
 import { Hud } from './hud.js';
@@ -171,6 +172,7 @@ controls.pointerTargets = hud.buttons;
 // --- Originalgröße & Platzieren auf Flächen ---------------------------------
 
 const placement = new Placement(renderer, scene);
+const floor = new FloorEstimator(renderer);
 
 /** Gesetzt, solange das Modell in Originalgröße auf einer Fläche steht. */
 let realSize = null; // { floorY }
@@ -235,7 +237,7 @@ function updateShadow() {
 
   // Fläche: beim Platzieren der Ring, nach dem Abstellen die Tischhöhe
   // (solange das Modell nicht darunter bewegt wurde), sonst der Boden.
-  let surfaceY = 0;
+  let surfaceY = floor.y;
   if (placement.active && placement.hasHit) surfaceY = placement.point.y;
   else if (realSize && bottom >= realSize.floorY - 0.05) surfaceY = realSize.floorY;
 
@@ -252,7 +254,7 @@ function placeInFrontOfUser() {
   dir.normalize();
 
   modelRoot.position.copy(eye).addScaledVector(dir, PLACE_DISTANCE);
-  modelRoot.position.y = Math.max(0.2, eye.y - PLACE_BELOW_EYES);
+  modelRoot.position.y = Math.max(floor.y + 0.2, eye.y - PLACE_BELOW_EYES);
   modelRoot.rotation.set(0, Math.atan2(-dir.x, -dir.z), 0);
   modelRoot.scale.setScalar(1);
 }
@@ -285,18 +287,15 @@ renderer.xr.addEventListener('sessionstart', () => {
 renderer.xr.addEventListener('sessionend', () => {
   controls.releaseAll();
   stopPlacement();
+  floor.stop();
   realSize = null;
   shadow.setEnabled(false);
   scene.background = DESKTOP_BACKGROUND;
   resetDesktopView();
 });
 
-document.body.appendChild(
-  ARButton.createButton(renderer, {
-    requiredFeatures: ['local-floor'],
-    optionalFeatures: ['hand-tracking', 'hit-test'],
-  }),
-);
+// Ohne "local-floor": keine Boundary-Begrenzung, man kann frei um große Modelle herumgehen.
+document.body.appendChild(createARButton(renderer, { optionalFeatures: ['hand-tracking', 'hit-test'] }));
 
 // --- Loop -------------------------------------------------------------------
 
@@ -307,9 +306,10 @@ renderer.setAnimationLoop((time, frame) => {
 
   if (renderer.xr.isPresenting) {
     controls.update(dt);
+    floor.update(frame);
 
     if (placement.active) {
-      placement.update(frame);
+      placement.update(frame, floor.y);
       if (placement.hasHit && manager.content) {
         modelRoot.position.copy(placement.point);
         modelRoot.position.y += manager.bottomOffset(modelRoot.scale.x);
@@ -328,6 +328,7 @@ renderer.setAnimationLoop((time, frame) => {
   // Die XR-Kamera hat erst nach einigen gerenderten Frames eine gültige Pose.
   if (needsPlacement && renderer.xr.isPresenting && ++placementFrames >= 3) {
     needsPlacement = false;
+    floor.start(renderer.xr.getCamera().getWorldPosition(new THREE.Vector3()));
     placeInFrontOfUser();
   }
 });
