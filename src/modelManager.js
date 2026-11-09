@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { optimizeModel } from './optimize.js';
 
 const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/';
 
@@ -16,6 +17,8 @@ const TARGET_SIZE = 0.5;
  */
 export class ModelManager {
   constructor(renderer, root, onChange = () => {}) {
+    this.renderer = renderer;
+    this._compileCamera = new THREE.PerspectiveCamera();
     this.root = root;
     this.onChange = onChange;
     this.models = [];
@@ -150,11 +153,33 @@ export class ModelManager {
       return;
     }
 
-    this._clear();
     gltf.scene.traverse((node) => {
       if (node.isMesh) node.castShadow = true;
     });
-    this.content = normalize(gltf.scene);
+
+    this._emit({ status: 'loading', progress: 1, message: 'Optimiere…' });
+    const stats = await optimizeModel(gltf.scene, { animated: gltf.animations.length > 0 });
+    console.info(
+      `Modell optimiert: ${stats.meshesBefore} → ${stats.meshesAfter} Meshes, ` +
+        `${stats.texturesResized} Texturen verkleinert, ${stats.glassMaterials} Glas-Materialien vereinfacht`,
+    );
+    const content = normalize(gltf.scene);
+
+    // Shader vorab (parallel) kompilieren, damit das Bild beim Erscheinen nicht hängt.
+    if (this.root.parent) {
+      try {
+        await this.renderer.compileAsync(content, this._compileCamera, this.root.parent);
+      } catch (err) {
+        console.warn('Shader-Vorkompilierung fehlgeschlagen:', err);
+      }
+    }
+    if (token !== this._loadToken) {
+      disposeObject(content);
+      return;
+    }
+
+    this._clear();
+    this.content = content;
     this.root.add(this.content);
 
     if (gltf.animations.length) {
@@ -172,6 +197,11 @@ export class ModelManager {
     this.animationPaused = !this.animationPaused;
     for (const action of this.actions) action.paused = this.animationPaused;
     return true;
+  }
+
+  /** True, solange eine Animation läuft (Schatten muss dann jeden Frame mit). */
+  get isAnimating() {
+    return this.actions.length > 0 && !this.animationPaused;
   }
 
   update(dt) {

@@ -6,6 +6,8 @@ Die Modelle erscheinen in deinem echten Raum und lassen sich mit den Controllern
 - Kein Build-Schritt, keine Installation – reines HTML/JavaScript mit [three.js](https://threejs.org) über CDN
 - Läuft direkt über **GitHub Pages**
 - Unterstützt Draco-, Meshopt- und KTX2-komprimierte GLBs sowie Animationen
+- Optimiert große Modelle beim Laden automatisch: Einzelteile mit gleichem Material werden zusammengefasst,
+  Texturen über 2048 px verkleinert, Glas (Transmission) durch einfache Transparenz ersetzt, Schatten nur bei Bewegung neu berechnet
 - Desktop-Vorschau mit Maus (Orbit) zum Prüfen der Modelle am PC
 
 ## Steuerung

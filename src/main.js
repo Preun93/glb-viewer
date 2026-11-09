@@ -120,7 +120,7 @@ function onModelChange(state) {
   let status = '';
 
   if (state.status === 'loading') {
-    status = state.progress ? `Lädt… ${Math.round(state.progress * 100)} %` : 'Lädt…';
+    status = state.message ?? (state.progress ? `Lädt… ${Math.round(state.progress * 100)} %` : 'Lädt…');
   } else if (state.status === 'error') {
     status = state.message;
   } else if (state.status === 'ready') {
@@ -241,7 +241,11 @@ function updateShadow() {
   if (placement.active && placement.hasHit) surfaceY = placement.point.y;
   else if (realSize && bottom >= realSize.floorY - 0.05) surfaceY = realSize.floorY;
 
-  shadow.update(_center, manager.boundingRadius(rootScale), surfaceY);
+  shadow.update(_center, manager.boundingRadius(rootScale), surfaceY, {
+    content: manager.content,
+    matrix: modelRoot.matrixWorld,
+    animated: manager.isAnimating,
+  });
 }
 
 /** Setzt das Modell 1 m vor den Nutzer, Vorderseite zum Nutzer gedreht. */
